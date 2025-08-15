@@ -31,11 +31,22 @@ def test_message_handling():
     for dice_test in dice_tests:
         print(f"  🎯 {dice_test}")
     
+    # Тестуємо вибухові кубики d10
+    print("\n💥 Вибухові кубики d10:")
+    d10_tests = [
+        "/r d10",
+        "/r d10+3",
+        "/r d10-2"
+    ]
+    
+    for d10_test in d10_tests:
+        print(f"  💥 {d10_test}")
+    
     # Тестуємо логіку парсингу
     print("\n🧮 Тестування парсингу формул:")
     test_formulas = [
         "d20", "d6+2", "d100-5+10", "d4", "d12-3",
-        "d4*2", "(d4*2)+6", "d6*3-1"
+        "d4*2", "(d4*2)+6", "d6*3-1", "d10", "d10+3"
     ]
     
     for formula in test_formulas:
