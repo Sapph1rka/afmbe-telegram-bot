@@ -43,6 +43,16 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • 🔴 1 на кубику = критичний провал
 • 🟢 максимальне значення = критичний успіх
 
+📊 Рівні успіху (тільки для d10):
+• ≤8 = Провал
+• 9-10 = це 1
+• 11-12 = це 2
+• 13-15 = це 3
+• 16-18 = це 4
+• 19-22 = це 5
+• 23-26 = це 6
+• 27+ = це 7
+
 Бот автоматично відповідає на повідомлення в групі та підтримує гілки чату.
 """
     try:
@@ -140,8 +150,16 @@ async def roll_dice_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Парсимо формулу кубика
         result = parse_dice_formula(formula)
         
-        # Формуємо відповідь
+        # Формуємо відповідь з рівнем успіху
         response = f"🎲 {formula} = {result['result']}"
+        
+        # Додаємо рівень успіху, якщо він є
+        if result.get('success_level'):
+            if result['success_level'] == "Провал":
+                response += f"\n❌ Рівень: {result['success_level']}"
+            else:
+                response += f"\n✅ Рівень: {result['success_level']}"
+        
         if result['details']:
             response += f"\n📊 Деталі: {result['details']}"
         
@@ -175,6 +193,27 @@ async def roll_dice_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Додаткове логування для діагностики
         import traceback
         logger.error(f"Повний traceback: {traceback.format_exc()}")
+
+def get_success_level(result: int) -> str:
+    """Визначає рівень успіху на основі результату"""
+    if result <= 8:
+        return "Провал"
+    elif 9 <= result <= 10:
+        return "це 1"
+    elif 11 <= result <= 12:
+        return "це 2"
+    elif 13 <= result <= 15:
+        return "це 3"
+    elif 16 <= result <= 18:
+        return "це 4"
+    elif 19 <= result <= 22:
+        return "це 5"
+    elif 23 <= result <= 26:
+        return "це 6"
+    elif result >= 27:
+        return "це 7"
+    else:
+        return "Невідомий рівень"
 
 def escape_markdown_v2(text: str) -> str:
     """Екранує спеціальні символи для MarkdownV2"""
@@ -306,6 +345,10 @@ def parse_dice_formula(formula: str) -> dict:
     
     if operations:
         details += f", операції: {', '.join(operations)}"
+    # Визначаємо рівень успіху тільки для d10
+    success_level = None
+    if dice_size == 10 and isinstance(final_result, int) and final_result > 0:
+        success_level = get_success_level(final_result)
     
     return {
         'result': final_result,
@@ -314,7 +357,8 @@ def parse_dice_formula(formula: str) -> dict:
         'operations': operations,
         'details': details,
         'total_bonus': total_bonus,
-        'explosion_details': explosion_details
+        'explosion_details': explosion_details,
+        'success_level': success_level
     }
 
 def main() -> None:
