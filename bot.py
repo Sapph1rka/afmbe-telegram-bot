@@ -32,6 +32,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • /r (d4*2)+6 - кинути d4, помножити на 2, додати 6
 • /r d6*3-1 - кинути d6, помножити на 3, відняти 1
 
+💥 Вибухові кубики d10:
+• 10 = кидаємо ще раз, додаємо (результат-5) якщо >5
+• 1 = кидаємо ще раз: 1=повний провал, 2-4=провал, 5-10=залишаємо 1
+
 💬 Автоматичні відповіді:
 • "Дарова" → "Ку" (в тій же гілці чату)
 
@@ -108,19 +112,6 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     logger.info(f"Показав статус для користувача {user.id}")
 
-async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обробник команди /ping"""
-    try:
-        await update.message.reply_text("🏓 Понг!")
-    except Exception as e:
-        logger.error(f"Помилка команди /ping: {e}")
-        # Спробуємо надіслати повідомлення без reply
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="🏓 Понг!"
-        )
-    
-    logger.info(f"Ping від користувача {update.effective_user.id}")
 
 async def roll_dice_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обробник команди /r для кидання кубиків"""
@@ -170,6 +161,7 @@ async def roll_dice_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             # Якщо щось пішло не так, спробуємо звичайну відповідь
             await update.message.reply_text(response)
             logger.warning(f"Помилка відповіді в гілці чату: {e}")
+        
         logger.info(f"✅ Успішно кинув кубик: {formula} = {result['result']} для користувача {update.effective_user.id}")
         
     except ValueError as e:
@@ -180,6 +172,9 @@ async def roll_dice_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         error_msg = f"❌ Неочікувана помилка: {str(e)}\n💡 Спробуйте ще раз"
         await update.message.reply_text(error_msg)
         logger.error(f"💥 Критична помилка кидання кубика: {formula} - {str(e)}")
+        # Додаткове логування для діагностики
+        import traceback
+        logger.error(f"Повний traceback: {traceback.format_exc()}")
 
 def escape_markdown_v2(text: str) -> str:
     """Екранує спеціальні символи для MarkdownV2"""
@@ -189,7 +184,7 @@ def escape_markdown_v2(text: str) -> str:
     return text
 
 def parse_dice_formula(formula: str) -> dict:
-    """Парсить формулу кубика та обчислює результат"""
+    """Парсить формулу кубика та обчислює результат з вибуховими кубиками для d10"""
     import re
     import random
     
@@ -206,58 +201,121 @@ def parse_dice_formula(formula: str) -> dict:
     if dice_size <= 0:
         raise ValueError("Розмір кубика має бути більше 0")
     
-    # Кидаємо кубик
+    # Отримуємо оригінальну формулу без кубика для обчислення модифікаторів
+    original_formula = formula.replace(dice_match.group(0), '')
+    
+    # Кидаємо перший кубик
     dice_result = random.randint(1, dice_size)
+    total_bonus = 0
+    explosion_details = []
     
-    # Замінюємо кубик на його результат у формулі
-    formula_with_result = formula.replace(dice_match.group(0), str(dice_result))
-    
-    # Тепер обчислюємо результат з урахуванням всіх операцій
-    try:
-        # Безпечно обчислюємо математичний вираз
-        final_result = eval(formula_with_result)
+    # Спеціальна логіка для d10 (вибухові кубики)
+    if dice_size == 10:
+        if dice_result == 10:
+            # Вибуховий успіх - кидаємо додаткові кубики
+            explosion_bonus = 0
+            explosion_count = 0
+            current_roll = 10
+            
+            while current_roll == 10:
+                explosion_count += 1
+                current_roll = random.randint(1, 10)
+                if current_roll > 5:
+                    explosion_bonus += current_roll - 5
+                    explosion_details.append(f"вибух #{explosion_count}: d10={current_roll} (+{current_roll-5})")
+                else:
+                    explosion_details.append(f"вибух #{explosion_count}: d10={current_roll} (без бонусу)")
+            
+            total_bonus = explosion_bonus
+            details = f"d{dice_size}=🟢{dice_result}🟢 (критичний успіх!)"
+            if explosion_details:
+                details += f", вибухи: {'; '.join(explosion_details)}"
+                details += f", загальний бонус: +{total_bonus}"
         
-        # Перевіряємо, чи результат є числом
-        if not isinstance(final_result, (int, float)):
-            raise ValueError("Результат не є числом")
+        elif dice_result == 1:
+            # Критичний провал - кидаємо ще раз
+            second_roll = random.randint(1, 10)
+            if second_roll == 1:
+                # Повний провал
+                details = f"d{dice_size}=🔴{dice_result}🔴 (повний провал! d10={second_roll})"
+                total_bonus = -999  # Спеціальне значення для повного провалу
+            elif 2 <= second_roll <= 4:
+                # Просто провал
+                details = f"d{dice_size}=🔴{dice_result}🔴 (провал! d10={second_roll})"
+                total_bonus = -100  # Спеціальне значення для провалу
+            else:
+                # Залишаємо 1 як число
+                details = f"d{dice_size}=🔴{dice_result}🔴 (критичний провал, але d10={second_roll} - залишаємо як число)"
+                total_bonus = 0
         
-        # Формуємо деталі з кольоровим маркуванням
-        # Маркуємо критичні значення: 1 (червоний) та максимальне значення (зелений)
+        else:
+            # Звичайний результат
+            details = f"d{dice_size}={dice_result}"
+    else:
+        # Для інших кубиків - звичайна логіка
         if dice_result == 1:
             details = f"d{dice_size}=🔴{dice_result}🔴 (критичний провал!)"
         elif dice_result == dice_size:
             details = f"d{dice_size}=🟢{dice_result}🟢 (критичний успіх!)"
         else:
             details = f"d{dice_size}={dice_result}"
-        
-        # Парсимо всі операції для детального показу
-        operations = []
-        
-        # Знаходимо множення та ділення
-        mult_div_pattern = r'(\d+[\*/]\d+)'
-        mult_div_matches = re.findall(mult_div_pattern, formula_with_result)
-        for op in mult_div_matches:
-            operations.append(op)
-        
-        # Знаходимо додавання та віднімання
-        add_sub_pattern = r'([+-]\d+)'
-        add_sub_matches = re.findall(add_sub_pattern, formula_with_result)
-        for op in add_sub_matches:
-            operations.append(op)
-        
-        if operations:
-            details += f", операції: {', '.join(operations)}"
-        
-        return {
-            'result': int(final_result),
-            'dice_result': dice_result,
-            'dice_size': dice_size,
-            'operations': operations,
-            'details': details
-        }
-        
-    except Exception as e:
-        raise ValueError(f"Помилка обчислення формули: {str(e)}")
+    
+    # Створюємо формулу з результатом кубика для всіх випадків
+    formula_with_result = formula.replace(dice_match.group(0), str(dice_result))
+    
+    # Обчислюємо фінальний результат
+    if total_bonus == -999:
+        # Повний провал
+        final_result = "ПОВНИЙ ПРОВАЛ"
+    elif total_bonus == -100:
+        # Провал
+        final_result = "ПРОВАЛ"
+    else:
+        # Звичайний результат
+        try:
+            # Додаємо бонус від вибухових кубиків
+            if total_bonus > 0:
+                formula_with_result += f"+{total_bonus}"
+            
+            # Обчислюємо результат
+            final_result = eval(formula_with_result)
+            
+            # Перевіряємо, чи результат є числом
+            if not isinstance(final_result, (int, float)):
+                raise ValueError("Результат не є числом")
+            
+            final_result = int(final_result)
+            
+        except Exception as e:
+            raise ValueError(f"Помилка обчислення формули: {str(e)}")
+    
+    # Парсимо всі операції для детального показу
+    operations = []
+    
+    # Знаходимо множення та ділення
+    mult_div_pattern = r'(\d+[\*/]\d+)'
+    mult_div_matches = re.findall(mult_div_pattern, formula_with_result)
+    for op in mult_div_matches:
+        operations.append(op)
+    
+    # Знаходимо додавання та віднімання
+    add_sub_pattern = r'([+-]\d+)'
+    add_sub_matches = re.findall(add_sub_pattern, formula_with_result)
+    for op in add_sub_matches:
+        operations.append(op)
+    
+    if operations:
+        details += f", операції: {', '.join(operations)}"
+    
+    return {
+        'result': final_result,
+        'dice_result': dice_result,
+        'dice_size': dice_size,
+        'operations': operations,
+        'details': details,
+        'total_bonus': total_bonus,
+        'explosion_details': explosion_details
+    }
 
 def main() -> None:
     """Основна функція"""
@@ -274,7 +332,6 @@ def main() -> None:
     # Додаємо обробники
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("status", status_command))
-    application.add_handler(CommandHandler("ping", ping_command))
     application.add_handler(CommandHandler("r", roll_dice_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
