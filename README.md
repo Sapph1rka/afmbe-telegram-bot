@@ -1,75 +1,73 @@
 # AFMBE Telegram Bot
 
-Простий телеграм бот, який автоматично відповідає на повідомлення в групі.
+A simple Telegram bot that automatically replies to messages in a group.
 
-## Функціональність
+## Features
 
-- **Автоматичні відповіді**: Відповідає "Ку" на повідомлення зі словом "Дарова"
-- **Гілки чату**: Автоматично відповідає в ту ж гілку чату (thread), де було повідомлення
-- **Команди**: 
-  - `/start` - Почати роботу з ботом
-  - `/help` - Показати довідку
-  - `/status` - Статус бота та інформація про чат
-  - `/ping` - Перевірка роботи бота
-  - `/r` - Кинути кубик з модифікаторами
-- **Кидання кубиків**: Підтримує складні формули з множенням, діленням та дужками (d20+5-2, d4*2, (d6*3)+5, тощо)
-- **Критичні значення**: Автоматично маркує 1 (🔴 критичний провал) та максимальне значення (🟢 критичний успіх)
-- **Вибухові кубики d10**: Спеціальна система для d10 з додатковими кидками та бонусами
-- **Рівні успіху**: Автоматично визначає рівень успіху (це 1-7) на основі фінального результату тільки для d10
-- **Асинхронна архітектура**: Повністю асинхронний код для ефективної роботи
-- **Групи**: Працює тільки в групах та супергрупах
+- **Chat threads**: Automatically replies in the same chat thread where the message was posted
+- **Commands**:
+  - `/start` - Start using the bot
+  - `/help` - Show help
+  - `/status` - Bot status and chat info
+  - `/ping` - Check that the bot is working
+  - `/r` - Roll a die with modifiers
+- **Dice rolling**: Supports complex formulas with multiplication, division, and parentheses (d20+5-2, d4*2, (d6*3)+5, etc.)
+- **Critical values**: Automatically marks 1 (🔴 critical failure) and the maximum value (🟢 critical success)
+- **Exploding d10 dice**: Special system for d10 with extra rolls and bonuses
+- **Success levels**: Automatically determines the success level (1–7) based on the final result for d10 only
+- **Async architecture**: Fully asynchronous code for efficient operation
+- **Groups**: Works only in groups and supergroups
 
-## Встановлення
+## Installation
 
-1. Клонуйте репозиторій:
+1. Clone the repository:
 ```bash
 git clone <your-repo-url>
 cd afmbe-telegram-bot
 ```
 
-2. Встановіть залежності:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Створіть файл `.env` на основі `config.env.example`:
-```bash
-cp config.env.example .env
-```
-
-4. Відредагуйте файл `.env` та додайте ваш токен бота:
+3. Create a `.env` file in the project root with the following structure:
 ```
 TELEGRAM_BOT_TOKEN=your_actual_bot_token_here
+DECEPTION_ALLOWED_IDS=123456789,987654321
 ```
 
-## Отримання токена бота
+- `TELEGRAM_BOT_TOKEN` — required bot token from @BotFather
+- `DECEPTION_ALLOWED_IDS` — optional comma-separated Telegram user IDs allowed to use `/deception`
 
-1. Знайдіть @BotFather в Telegram
-2. Відправте команду `/newbot`
-3. Слідуйте інструкціям для створення бота
-4. Скопіюйте отриманий токен у файл `.env`
+## Getting a bot token
 
-## Запуск
+1. Find @BotFather in Telegram
+2. Send the `/newbot` command
+3. Follow the instructions to create a bot
+4. Copy the received token into the `.env` file
+
+## Running
 
 ```bash
 python bot.py
 ```
 
-## Додавання бота в групу
+## Adding the bot to a group
 
-1. Додайте бота в групу як звичайного учасника
-2. Бот автоматично почне відповідати на повідомлення зі словом "Дарова"
+1. Add the bot to a group as a regular member
+2. The bot will automatically start replying to messages containing the word "Darova"
 
-## Налаштування
+## Configuration
 
-Для зміни поведінки бота відредагуйте функцію `handle_message` у файлі `bot.py`.
+To change the bot's behavior, edit the `handle_message` function in `bot.py`.
 
-## Логування
+## Logging
 
-Бот веде лог всіх дій у консолі. Перевіряйте логи для діагностики проблем.
+The bot logs all actions to the console. Check the logs to diagnose issues.
 
-## Безпека
+## Security
 
-- Ніколи не додавайте файл `.env` у репозиторій
-- Токен бота має бути секретним
-- Додайте `.env` у `.gitignore`
+- Never commit the `.env` file to the repository
+- Keep the bot token secret
+- Add `.env` to `.gitignore`
